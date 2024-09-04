@@ -1,39 +1,71 @@
-﻿using Newtonsoft.Json.Linq;
-/*
- * Obs:
- * a) Usar o json ou xml disponível como fonte dos dados do faturamento mensal;
- * Em nenhum local foi encontrado um json ou xml disponível para ser utilizado como fonte de dados.
-*/
+﻿using Faturamento;
+using Newtonsoft.Json;
 
 internal class Program
 {
     private static void Main()
     {
-        string json = @"{
-            'faturamento_diario': [
-                {'dia': 1, 'valor': 1500.00},
-                {'dia': 2, 'valor': 2500.00},
-                {'dia': 3, 'valor': 0.00},
-                {'dia': 4, 'valor': 0.00},
-                {'dia': 5, 'valor': 1200.00},
-                {'dia': 6, 'valor': 3000.00},
-                {'dia': 7, 'valor': 4500.00}
-            ]
-        }";
+        double menorValor = 0, maiorValor = 0;
+        int quantidadeDeDiasComFaturamento = 0, quantidadeDeDiasComFaturamentoAcimaDaMedia = 0;
+        double valorTotalDoFaturamento = 0;
 
-        var faturamento = JObject.Parse(json)["faturamento_diario"]?
-                            .Where(x => x["valor"]?.Value<decimal?>() > 0)
-                            .Select(x => x["valor"]?.Value<decimal>())
-                            .ToList();
+        string nomeDoArquivo = "Dados.json";
 
-        decimal? menorValor = faturamento!.Min();
-        decimal? maiorValor = faturamento!.Max();
-        decimal? media = faturamento!.Average();
+        string diretorioBase = Directory.GetParent(AppDomain.CurrentDomain.BaseDirectory)!.Parent!.Parent!.Parent!.FullName;
 
-        int diasAcimaMedia = faturamento!.Count(x => x > media);
+        string caminhoFinal = Path.Combine(diretorioBase, nomeDoArquivo);
 
-        Console.WriteLine($"Menor valor: {menorValor}");
-        Console.WriteLine($"Maior valor: {maiorValor}");
-        Console.WriteLine($"Dias com faturamento acima da média: {diasAcimaMedia}");
+        using StreamReader sr = new(caminhoFinal);
+        var json = sr.ReadToEnd();
+
+        var dados = JsonConvert.DeserializeObject<List<Dados>>(json);
+
+        for (var i = 0; i < dados!.Count; i++)
+        {
+            if (i == 0)
+            {
+                menorValor = dados[i].Valor;
+                maiorValor = dados[i].Valor;
+            }
+
+            if ((menorValor > dados[i].Valor) && (dados[i].Valor > 0))
+            {
+                menorValor = dados[i].Valor;
+            }
+            else if ((maiorValor < dados[i].Valor) && (dados[i].Valor > 0))
+            {
+                maiorValor = dados[i].Valor;
+            }
+
+            if (dados[i].Valor > 0)
+            {
+                valorTotalDoFaturamento += dados[i].Valor;
+                quantidadeDeDiasComFaturamento++;
+            }
+        }
+
+        var mediaDoFaturamentoMensal = valorTotalDoFaturamento / quantidadeDeDiasComFaturamento;
+
+        for (var i = 0; i < dados!.Count; i++)
+        {
+            if (dados[i].Valor > 0)
+            {
+                if (dados[i].Valor > mediaDoFaturamentoMensal)
+                {
+                    quantidadeDeDiasComFaturamentoAcimaDaMedia++;
+                }
+            }
+        }
+
+        Console.WriteLine($"Dia com menor valor de faturamento: {Math.Round(menorValor, 2)}");
+        Console.WriteLine($"Dia com maior valor de faturamento: {Math.Round(maiorValor, 2)}");
+
+        Console.WriteLine();
+        Console.WriteLine($"Dias com faturamento: {quantidadeDeDiasComFaturamento}");
+        Console.WriteLine($"Valor total do faturamento: {Math.Round(valorTotalDoFaturamento, 2)}");
+        Console.WriteLine($"A média de faturamento no mês é: {Math.Round(mediaDoFaturamentoMensal, 2)}");
+
+        Console.WriteLine();
+        Console.WriteLine($"Quantidade de dias com faturamento acima da média é: {quantidadeDeDiasComFaturamentoAcimaDaMedia}");
     }
 }
